@@ -49,13 +49,13 @@ PRs welcome!
 
 ## Tips & Tricks
 
-If you're using VS Code, you can add a task to run `jest_lint` on the current file:
+If you're using VS Code, you can add a task to `.vscode/tasks.json` to run `jest_lint` on the current file:
 ```
-    {
-      "label": "jest_lint",
-      "type": "shell",
-      "command": "jest_lint -mf ${file}"
-    }
+{
+  "label": "jest_lint",
+  "type": "shell",
+  "command": "jest_lint -mf ${file}"
+}
 ```
 
 Then you can use a keyboard shortcut to check your mocks while you have your `.spec.*` or `.test.*` file open.
