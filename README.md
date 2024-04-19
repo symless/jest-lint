@@ -2,6 +2,12 @@
 
 Lint your Jest unit tests to find problems. Built with Rust.
 
+Right now this is a simple tool to check that you have mocked your imports. But if you have an
+idea for adding a new feature, feel free to suggest 
+
+If you want to ignore a region of imports (e.g. if you intentionally don't want to mock them),
+you can use a region: `// #region not-mocked` (see the [samples](samples) dir for more context)
+
 ## Getting started
 
 First: [Install Rust and Cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
@@ -15,17 +21,17 @@ cargo install jest_lint
 jest_lint --help
 ```
 
-To test all the files:
+To test for mocks in all your files:
 ```
 jest_lint -m
 ```
 
-To test a specific dir:
+To test for mocks in files for a specific dir:
 ```
 jest_lint -d path/to/files
 ```
 
-To test a single file:
+To test for mocks in a single file:
 ```
 jest_lint -m -f path/to/foobar.test.js
 ```
