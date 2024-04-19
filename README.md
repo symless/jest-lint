@@ -36,7 +36,6 @@ To test for mocks in a single file:
 jest_lint -m -f path/to/foobar.test.js
 ```
 
-
 ### Latest development build
 
 Download this repository.
@@ -47,3 +46,16 @@ cargo run -- --help
 ```
 
 PRs welcome!
+
+## Tips & Tricks
+
+If you're using VS Code, you can add a task to run `jest_lint` on the current file:
+```
+    {
+      "label": "jest_lint",
+      "type": "shell",
+      "command": "jest_lint -mf ${file}"
+    }
+```
+
+Then you can use a keyboard shortcut to check your mocks while you have your `.spec.*` or `.test.*` file open.
