@@ -1,6 +1,6 @@
 [package]
 name = "jest_lint"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Nick Bolton <nick@symless.com>"]
 license = "MIT"
