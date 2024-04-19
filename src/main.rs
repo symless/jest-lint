@@ -10,8 +10,8 @@ use std::{
 
 const DEFAULT_DIR_PATH: &str = ".";
 const IGNORE_PATHS: [&str; 3] = ["node_modules", "build", "__snapshots__"];
-const TEST_FILE_MATCH: &str = ".test";
-const SPEC_FILE_MATCH: &str = ".spec";
+const TEST_FILE_EXT: &str = ".test";
+const SPEC_FILE_EXT: &str = ".spec";
 const START_NOT_MOCKED: &str = "//#region not-mocked";
 const END_NOT_MOCKED: &str = "//#endregion";
 
@@ -89,7 +89,7 @@ fn check_mocks(filename: Option<String>, start_dir_name: Option<String>) {
     println!("Looking for files in: {}", start_dir.display());
     find_test_files(start_dir, &mut test_files);
     if test_files.is_empty() {
-        println!("No files with '{TEST_FILE_MATCH}' or '{SPEC_FILE_MATCH}' in the name.");
+        println!("No files with '{TEST_FILE_EXT}' or '{SPEC_FILE_EXT}' in the name.");
         return;
     }
     print_test_files(&test_files);
@@ -172,15 +172,15 @@ fn print_under_test(pairs: &[TestPair]) {
 }
 
 fn print_test_files(test_files: &[DirEntry]) {
-    println!("Files with '{TEST_FILE_MATCH}' in the name:");
+    println!("Files with '{TEST_FILE_EXT}' or '{SPEC_FILE_EXT}' in the name:");
     for entry in test_files {
         println!("{entry:?}");
     }
 }
 
 fn get_pair_for_single_file(filename: String) -> TestPair {
-    if !filename.contains(TEST_FILE_MATCH) && !filename.contains(SPEC_FILE_MATCH) {
-        panic!("Only filenames with '{TEST_FILE_MATCH}' or '{SPEC_FILE_MATCH}' are supported.");
+    if !filename.contains(TEST_FILE_EXT) && !filename.contains(SPEC_FILE_EXT) {
+        panic!("Only filenames with '{TEST_FILE_EXT}' or '{SPEC_FILE_EXT}' are supported.");
     }
     let test_path = PathBuf::from(filename);
     let under_test_path = get_under_test_path(&test_path);
@@ -191,9 +191,8 @@ fn get_pair_for_single_file(filename: String) -> TestPair {
 }
 
 fn get_under_test_path(test_path: &Path) -> PathBuf {
-    let test_name = test_path.file_name().unwrap().to_str().unwrap_or("");
-    let name = test_name.replace(TEST_FILE_MATCH, "");
-
+    let test_name = test_path.file_name().unwrap().to_str().unwrap();
+    let name = test_name.replace(".spec", "").replace(".test", "");
     test_path.with_file_name(name)
 }
 
@@ -211,8 +210,7 @@ fn find_test_files(path: &Path, test_files: &mut Vec<DirEntry>) {
             } else {
                 let filename = entry.file_name();
                 if let Some(filename_str) = filename.to_str() {
-                    if filename_str.contains(TEST_FILE_MATCH)
-                        || filename_str.contains(SPEC_FILE_MATCH)
+                    if filename_str.contains(TEST_FILE_EXT) || filename_str.contains(SPEC_FILE_EXT)
                     {
                         test_files.push(entry);
                     }
@@ -230,7 +228,9 @@ fn find_under_test(test_files: &[DirEntry]) -> Vec<TestPair> {
         .flat_map(|test_entry| {
             let test_entry_path = test_entry.path();
             let test_name = test_entry_path.file_name().unwrap().to_str().unwrap_or("");
-            let name = test_name.replace(TEST_FILE_MATCH, "");
+            let name = test_name
+                .replace(TEST_FILE_EXT, "")
+                .replace(SPEC_FILE_EXT, "");
             let path = test_entry_path.with_file_name(name);
             if path.exists() {
                 Some(TestPair {

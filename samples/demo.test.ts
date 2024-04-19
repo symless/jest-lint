@@ -1,12 +1,5 @@
-//#region not-mocked
-import {
-  helloWorld, //
-} from "./demo";
-//#endregion
-
-import {
-  dependency, //
-} from "./dependency";
+import { helloWorld } from "./demo";
+import { dependency } from "./dependency";
 
 jest.mock("./dependency");
 

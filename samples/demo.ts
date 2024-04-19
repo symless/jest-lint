@@ -1,5 +1,10 @@
+//#region not-mocked
 import { DemoType } from "./types/DemoType";
-import { dependency } from "./dependency";
+//#endregion
+
+import {
+  dependency, // multi-line import test
+} from "./dependency";
 
 export function helloWorld() {
   return `${DemoType.Hello} ${DemoType.World} ${dependency()}`;
