@@ -1,2 +1,2 @@
-# jest_lint
-Lint your Jest unit tests to find problems
+# jest-lint
+Lint your Jest unit tests to find problems. Built with Rust.
