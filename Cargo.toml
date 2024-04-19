@@ -2,9 +2,16 @@
 name = "jest_lint"
 version = "0.1.0"
 edition = "2021"
+authors = ["Nick Bolton <nick@symless.com>"]
+license = "MIT"
+description = "Lint your Jest unit tests to find problems"
+readme = "README.md"
+homepage = "https://github.com/symless/jest-lint"
+repository = "https://github.com/symless/jest-lint"
+keywords = ["cli", "jest", "lint"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 clap = { version = "4.4.4", features = ["derive"] }
 colored = "2.0.4"
 regex = "1.9.5"
-
