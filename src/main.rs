@@ -1,7 +1,7 @@
 use clap::Parser;
 use colored::*;
 use core::panic;
-use regex::RegexBuilder;
+use regex::Regex;
 use std::{
     fmt::Display,
     fs::{self, DirEntry},
@@ -12,6 +12,8 @@ const DEFAULT_DIR_PATH: &str = ".";
 const IGNORE_PATHS: [&str; 3] = ["node_modules", "build", "__snapshots__"];
 const TEST_FILE_MATCH: &str = ".test";
 const SPEC_FILE_MATCH: &str = ".spec";
+const START_NOT_MOCKED: &str = "//#region not-mocked";
+const END_NOT_MOCKED: &str = "//#endregion";
 
 struct TestPair {
     test_path: PathBuf,
@@ -87,7 +89,7 @@ fn check_mocks(filename: Option<String>, start_dir_name: Option<String>) {
     println!("Looking for files in: {}", start_dir.display());
     find_test_files(start_dir, &mut test_files);
     if test_files.is_empty() {
-        println!("No files with '{TEST_FILE_MATCH}' in the name.");
+        println!("No files with '{TEST_FILE_MATCH}' or '{SPEC_FILE_MATCH}' in the name.");
         return;
     }
     print_test_files(&test_files);
@@ -150,20 +152,16 @@ fn print_imports(imports: &[String]) {
 }
 
 fn get_imports_from_file(path: &Path) -> Vec<String> {
-    if let Ok(contents) = fs::read_to_string(path) {
-        let re = RegexBuilder::new(r#"import(?:.|\n)+"(.+)";"#)
-            .swap_greed(true)
-            .multi_line(true)
-            .build()
-            .unwrap();
-
-        re.captures_iter(&contents)
-            .flat_map(|capture| capture.get(1))
-            .map(|m| m.as_str().to_string())
-            .collect()
-    } else {
-        panic!("Error reading file.");
-    }
+    let contents = fs::read_to_string(path).expect("Error reading file.");
+    let no_mock_pattern = &format!(r"(?s){}.*?{}", START_NOT_MOCKED, END_NOT_MOCKED);
+    let no_mock_regex = Regex::new(no_mock_pattern).unwrap();
+    let filtered_contents = no_mock_regex.replace_all(&contents, "");
+    let import_regex = Regex::new(r#"import(?:.|\n)+"(.+)";"#).unwrap();
+    import_regex
+        .captures_iter(&filtered_contents)
+        .filter_map(|capture| capture.get(1))
+        .map(|m| m.as_str().to_string())
+        .collect()
 }
 
 fn print_under_test(pairs: &[TestPair]) {
@@ -181,11 +179,8 @@ fn print_test_files(test_files: &[DirEntry]) {
 }
 
 fn get_pair_for_single_file(filename: String) -> TestPair {
-    if filename.contains(SPEC_FILE_MATCH) {
-        panic!("Filenames with '{SPEC_FILE_MATCH}' are not supported yet.",);
-    }
-    if !filename.contains(TEST_FILE_MATCH) {
-        panic!("Only filenames with '{TEST_FILE_MATCH}' are supported.");
+    if !filename.contains(TEST_FILE_MATCH) && !filename.contains(SPEC_FILE_MATCH) {
+        panic!("Only filenames with '{TEST_FILE_MATCH}' or '{SPEC_FILE_MATCH}' are supported.");
     }
     let test_path = PathBuf::from(filename);
     let under_test_path = get_under_test_path(&test_path);
@@ -216,7 +211,9 @@ fn find_test_files(path: &Path, test_files: &mut Vec<DirEntry>) {
             } else {
                 let filename = entry.file_name();
                 if let Some(filename_str) = filename.to_str() {
-                    if filename_str.contains(TEST_FILE_MATCH) {
+                    if filename_str.contains(TEST_FILE_MATCH)
+                        || filename_str.contains(SPEC_FILE_MATCH)
+                    {
                         test_files.push(entry);
                     }
                 }

@@ -1,11 +1,27 @@
 {
   "configurations": [
     {
-      "name": "jest_lint",
+      "name": "mock dir",
       "type": "lldb",
       "request": "launch",
       "program": "target/debug/jest_lint",
-      "args": ["-m"],
+      "args": ["-md", "samples"],
+      "preLaunchTask": "build"
+    },
+    {
+      "name": "mock spec",
+      "type": "lldb",
+      "request": "launch",
+      "program": "target/debug/jest_lint",
+      "args": ["-mf", "samples/demo.spec.ts"],
+      "preLaunchTask": "build"
+    },
+    {
+      "name": "mock test",
+      "type": "lldb",
+      "request": "launch",
+      "program": "target/debug/jest_lint",
+      "args": ["-mf", "samples/demo.spec.ts"],
       "preLaunchTask": "build"
     }
   ]
