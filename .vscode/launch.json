@@ -1,0 +1,12 @@
+{
+  "configurations": [
+    {
+      "name": "jest_lint",
+      "type": "lldb",
+      "request": "launch",
+      "program": "target/debug/jest_lint",
+      "args": ["-m"],
+      "preLaunchTask": "build"
+    }
+  ]
+}
