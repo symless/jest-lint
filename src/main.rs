@@ -3,6 +3,7 @@ use colored::*;
 use mock::Mock;
 use regex::Regex;
 use std::{
+    cell::LazyCell,
     fs::{self},
     path::{Path, PathBuf},
 };
@@ -12,8 +13,12 @@ mod mock;
 mod test_pair;
 
 const DEFAULT_DIR_PATH: &str = ".";
-const START_NOT_MOCKED: &str = "//#region not-mocked";
-const END_NOT_MOCKED: &str = "//#endregion";
+
+const IMPORT_REGEX: LazyCell<Regex> = LazyCell::new(|| {
+    Regex::new(r#"import\s+(\{[^}]+\}|\*\s+as\s\w+|\w+)\s+from\s+"([^"]+)"#).unwrap()
+});
+const IGNORE_IMPORT_REGEX: LazyCell<Regex> =
+    LazyCell::new(|| Regex::new(r"(?s)//#region not-mocked.*?//#endregion").unwrap());
 
 #[derive(Parser)]
 struct Args {
@@ -117,12 +122,8 @@ fn print_imports(imports: &[String]) {
 
 fn get_imports_from_file(path: &Path) -> Vec<String> {
     let contents = fs::read_to_string(path).expect("Error reading file.");
-    let no_mock_pattern = format!(r"(?s){}.*?{}", START_NOT_MOCKED, END_NOT_MOCKED);
-    let no_mock_regex = Regex::new(&no_mock_pattern).unwrap();
-    let filtered_contents = no_mock_regex.replace_all(&contents, "");
-    let import_regex =
-        Regex::new(r#"import\s+(\{[^}]+\}|\*\s+as\s\w+|\w+)\s+from\s+"([^"]+)"#).unwrap();
-    import_regex
+    let filtered_contents = IGNORE_IMPORT_REGEX.replace_all(&contents, "");
+    IMPORT_REGEX
         .captures_iter(&filtered_contents)
         .filter_map(|capture| capture.get(2))
         .map(|m| m.as_str().to_string())
