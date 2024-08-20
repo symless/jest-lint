@@ -120,7 +120,8 @@ fn get_imports_from_file(path: &Path) -> Vec<String> {
     let no_mock_pattern = format!(r"(?s){}.*?{}", START_NOT_MOCKED, END_NOT_MOCKED);
     let no_mock_regex = Regex::new(&no_mock_pattern).unwrap();
     let filtered_contents = no_mock_regex.replace_all(&contents, "");
-    let import_regex = Regex::new(r#"import\s+\{[^}]+\}\s+from\s+"([^"]+)";"#).unwrap();
+    let import_regex =
+        Regex::new(r#"import\s+(\{[^}]+\}|\*\s+as\s\w+)\s+from\s+"([^"]+)""#).unwrap();
     import_regex
         .captures_iter(&filtered_contents)
         .filter_map(|capture| capture.get(2))
