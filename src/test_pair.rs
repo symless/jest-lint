@@ -3,32 +3,20 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
+use thiserror::Error;
 
 const TEST_FILE_EXT: &str = ".test";
 const SPEC_FILE_EXT: &str = ".spec";
 const IGNORE_PATHS: [&str; 3] = ["node_modules", "build", "__snapshots__"];
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum Error {
+    #[error("Sorry, test file doesn't exist: {0}")]
     TestFileDoesNotExist(PathBuf),
+    #[error("'{0}' is not a test file")]
     NotTestFile(PathBuf),
+    #[error("Sorry, module under test doesn't exist: {0}")]
     UnderTestFileDoesNotExist(PathBuf),
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::TestFileDoesNotExist(p) => {
-                write!(f, "Sorry, test file doesn't exist: {}", p.display())
-            }
-            Error::NotTestFile(p) => {
-                write!(f, "'{}' is not a test file", p.display())
-            }
-            Error::UnderTestFileDoesNotExist(p) => {
-                write!(f, "Sorry, module under test doesn't exist: {}", p.display())
-            }
-        }
-    }
 }
 
 pub struct TestPair {
