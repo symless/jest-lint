@@ -1,6 +1,6 @@
 use clap::Parser;
 use colored::*;
-use mock::Mock;
+use module::Module;
 use regex::Regex;
 use std::{
     fs::{self},
@@ -9,7 +9,7 @@ use std::{
 };
 use test_pair::{find_all_tests_in_directory, TestPair};
 
-mod mock;
+mod module;
 mod test_pair;
 
 const DEFAULT_DIR_PATH: &str = ".";
@@ -86,18 +86,11 @@ fn check_missing_mocks(pairs: Vec<TestPair>) {
     }
 }
 
-fn check_test_for_jest_mocks(pair: &TestPair, imports: &[String]) {
+fn check_test_for_jest_mocks(pair: &TestPair, modules: &[Module]) {
     let test_contents = fs::read_to_string(&pair.test_file).unwrap();
-    let missing_mocks: Vec<Mock> = imports
+    let missing_mocks: Vec<&Module> = modules
         .iter()
-        .flat_map(|import| {
-            let mock = Mock::new(import);
-            if !mock.with_in(&test_contents) {
-                Some(mock)
-            } else {
-                None
-            }
-        })
+        .filter(|module| !module.mock_with_in(&test_contents))
         .collect();
 
     if missing_mocks.is_empty() {
@@ -107,26 +100,26 @@ fn check_test_for_jest_mocks(pair: &TestPair, imports: &[String]) {
         );
     } else {
         println!("{}", "  Missing mocks:".red());
-        for mock in missing_mocks {
-            println!("    {mock}");
+        for module in missing_mocks {
+            println!("    {}", module.mock());
         }
     }
 }
 
-fn print_imports(imports: &[String]) {
+fn print_imports(modules: &[Module]) {
     println!("  Imports:");
-    for import in imports {
-        println!("    {import}");
+    for module in modules {
+        println!("    {}", module.module());
     }
 }
 
-fn get_imports_from_file(path: &Path) -> Vec<String> {
+fn get_imports_from_file(path: &Path) -> Vec<Module> {
     let contents = fs::read_to_string(path).expect("Error reading file.");
     let filtered_contents = IGNORE_IMPORT_REGEX.replace_all(&contents, "");
     IMPORT_REGEX
         .captures_iter(&filtered_contents)
         .filter_map(|capture| capture.get(2))
-        .map(|m| m.as_str().to_string())
+        .map(|m| Module::new(m.as_str()))
         .collect()
 }
 
