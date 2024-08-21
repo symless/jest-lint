@@ -3,9 +3,9 @@ use colored::*;
 use mock::Mock;
 use regex::Regex;
 use std::{
-    cell::LazyCell,
     fs::{self},
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 use test_pair::{find_all_tests_in_directory, TestPair};
 
@@ -14,11 +14,11 @@ mod test_pair;
 
 const DEFAULT_DIR_PATH: &str = ".";
 
-const IMPORT_REGEX: LazyCell<Regex> = LazyCell::new(|| {
+static IMPORT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"import\s+(\{[^}]+\}|\*\s+as\s\w+|\w+)\s+from\s+"([^"]+)"#).unwrap()
 });
-const IGNORE_IMPORT_REGEX: LazyCell<Regex> =
-    LazyCell::new(|| Regex::new(r"(?s)//#region not-mocked.*?//#endregion").unwrap());
+static IGNORE_IMPORT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?s)//#region not-mocked.*?//#endregion").unwrap());
 
 #[derive(Parser)]
 struct Args {
