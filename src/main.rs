@@ -109,7 +109,7 @@ fn check_test_for_jest_mocks(pair: &TestPair, modules: &[Module]) {
 fn print_imports(modules: &[Module]) {
     println!("  Imports:");
     for module in modules {
-        println!("    {}", module.module());
+        println!("    {module}");
     }
 }
 

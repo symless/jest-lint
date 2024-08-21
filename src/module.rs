@@ -13,10 +13,6 @@ impl Module {
         test_file.contains(&mock)
     }
 
-    pub fn module(&self) -> &str {
-        self.0.as_str()
-    }
-
     pub fn mock(&self) -> String {
         format!(r#"jest.mock("{}")"#, self.0)
     }
