@@ -12,7 +12,9 @@ keywords = ["cli", "jest", "lint"]
 categories = ["command-line-utilities"]
 
 [dependencies]
-clap = { version = "4.4.4", features = ["derive"] }
+clap = { version = "4.4.4", features = ["derive", "string"] }
 colored = "2.0.4"
 regex = "1.9.5"
+serde = { version = "1.0.209", features = ["derive"] }
+serde_json = "1.0.127"
 thiserror = "1.0.63"
