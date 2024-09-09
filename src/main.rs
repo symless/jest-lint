@@ -22,8 +22,6 @@ static IGNORE_IMPORT_REGEX: LazyLock<Regex> =
 fn main() {
     let args = Args::parse();
 
-    println!("{args:?}");
-
     match (args.mocks, args.filename) {
         (true, Some(path)) => check_file_mock(&path),
         (true, None) => check_directory_mocks(&args.directory, true),
