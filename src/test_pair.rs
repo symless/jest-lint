@@ -85,17 +85,8 @@ fn find_all_tests_in_directory_internal(path: &Path, tests: &mut Vec<TestPair>) 
     }
 }
 
-pub fn find_all_tests_in_directory(path: impl AsRef<Path>, recursive: bool) -> Vec<TestPair> {
-    if recursive {
-        let mut tests: Vec<TestPair> = vec![];
-        find_all_tests_in_directory_internal(path.as_ref(), &mut tests);
-        tests
-    } else {
-        path.as_ref()
-            .read_dir()
-            .expect("directory could not be read")
-            .flatten()
-            .flat_map(|entry| TestPair::try_from(entry.path().as_ref()))
-            .collect()
-    }
+pub fn find_all_tests_in_directory(path: impl AsRef<Path>) -> Vec<TestPair> {
+    let mut tests: Vec<TestPair> = vec![];
+    find_all_tests_in_directory_internal(path.as_ref(), &mut tests);
+    tests
 }

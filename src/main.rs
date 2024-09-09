@@ -24,7 +24,7 @@ fn main() {
 
     match (args.mocks, args.filename) {
         (true, Some(path)) => check_file_mock(&path),
-        (true, None) => check_directory_mocks(&args.directory, true),
+        (true, None) => check_directory_mocks(&args.directory),
         _ => println!("Oops, no command specified. Try --help."),
     }
 }
@@ -36,9 +36,9 @@ fn check_file_mock(path: &Path) {
     };
 }
 
-fn check_directory_mocks(path: &Path, recursive: bool) {
+fn check_directory_mocks(path: &Path) {
     println!("Looking for files in: {}", path.display());
-    let pairs = find_all_tests_in_directory(path, recursive);
+    let pairs = find_all_tests_in_directory(path);
     if pairs.is_empty() {
         println!("Could not find test file pairs");
         return;
