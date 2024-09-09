@@ -1,9 +1,9 @@
 use std::{
     fmt::Display,
-    fs,
     path::{Path, PathBuf},
 };
 use thiserror::Error;
+use walkdir::{DirEntry, WalkDir};
 
 const TEST_FILE_EXT: &str = ".test";
 const SPEC_FILE_EXT: &str = ".spec";
@@ -68,25 +68,27 @@ impl TryFrom<&Path> for TestPair {
     }
 }
 
-fn find_all_tests_in_directory_internal(path: &Path, tests: &mut Vec<TestPair>) {
-    let entries = fs::read_dir(path).expect("Error reading directory contents.");
-    for entry in entries.flatten() {
-        let entry_file = entry.path();
-        let name = entry_file.file_name().unwrap().to_str().unwrap_or("");
-        if IGNORE_PATHS.contains(&name) {
-            continue;
-        }
+impl TryFrom<DirEntry> for TestPair {
+    type Error = Error;
 
-        if entry_file.is_dir() {
-            find_all_tests_in_directory_internal(&entry_file, tests);
-        } else if let Ok(test_pair) = TestPair::try_from(entry.path().as_ref()) {
-            tests.push(test_pair);
-        }
+    fn try_from(value: DirEntry) -> Result<Self, Self::Error> {
+        TestPair::try_from(value.path())
     }
 }
 
 pub fn find_all_tests_in_directory(path: impl AsRef<Path>) -> Vec<TestPair> {
-    let mut tests: Vec<TestPair> = vec![];
-    find_all_tests_in_directory_internal(path.as_ref(), &mut tests);
-    tests
+    WalkDir::new(path.as_ref())
+        .into_iter()
+        .filter_entry(|e| {
+            let entry_file = e.path();
+            let name = entry_file
+                .file_name()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap_or("");
+            !IGNORE_PATHS.contains(&name)
+        })
+        .flatten()
+        .flat_map(TestPair::try_from)
+        .collect()
 }
