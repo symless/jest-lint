@@ -1,166 +1,103 @@
+use crate::{
+    cli::Args,
+    module::Module,
+    test_pair::{find_all_tests_in_directory, TestPair},
+};
 use clap::Parser;
 use colored::*;
-use core::panic;
+use core::slice;
 use regex::Regex;
-use std::{
-    fmt::Display,
-    fs::{self, DirEntry},
-    path::{Path, PathBuf},
-};
+use std::{fs, path::Path, sync::LazyLock};
 
-const DEFAULT_DIR_PATH: &str = ".";
-const IGNORE_PATHS: [&str; 3] = ["node_modules", "build", "__snapshots__"];
-const TEST_FILE_EXT: &str = ".test";
-const SPEC_FILE_EXT: &str = ".spec";
-const START_NOT_MOCKED: &str = "//#region not-mocked";
-const END_NOT_MOCKED: &str = "//#endregion";
+mod cli;
+mod module;
+mod test_pair;
 
-struct TestPair {
-    test_path: PathBuf,
-    under_test_path: PathBuf,
-}
-
-impl Display for TestPair {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{} -> {}",
-            self.test_path.display(),
-            self.under_test_path.display()
-        )
-    }
-}
-
-#[derive(Parser)]
-struct Args {
-    /// Checks that all imports have a corresponding mock.
-    #[arg(short, long)]
-    mocks: bool,
-
-    /// Only check a specific filename.
-    #[arg(short, long)]
-    filename: Option<String>,
-
-    /// Directory to check. Defaults to '../..' if not set.
-    #[arg(short, long)]
-    directory: Option<String>,
-}
+static IMPORT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"import\s+(\{[^}]+\}|\*\s+as\s\w+|\w+)\s+from\s+"([^"]+)"#).unwrap()
+});
+static IGNORE_IMPORT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"//#region not-mocked.*?//#endregion").unwrap());
 
 fn main() {
     let args = Args::parse();
 
-    if args.mocks {
-        check_mocks(args.filename, args.directory);
-        return;
+    match (args.mocks, args.filename) {
+        (true, Some(path)) => check_file_mock(&path),
+        (true, None) => check_directory_mocks(&args.directory),
+        _ => println!("Oops, no command specified. Try --help."),
     }
-
-    println!("Oops, no command specified. Try --help.");
 }
 
-fn check_mocks(filename: Option<String>, start_dir_name: Option<String>) {
-    if let Some(f_name) = filename {
-        let pair = get_pair_for_single_file(f_name);
+fn check_file_mock(path: &Path) {
+    match TestPair::try_from(path) {
+        Ok(pair) => check_missing_mocks(slice::from_ref(&pair)),
+        Err(err) => eprintln!("{err}"),
+    };
+}
 
-        if !pair.test_path.exists() {
-            println!(
-                "Sorry, test file doesn't exist: {}",
-                pair.test_path.display()
-            );
-            return;
-        }
-
-        if !pair.under_test_path.exists() {
-            println!(
-                "Sorry, module under test doesn't exist: {}",
-                pair.under_test_path.display()
-            );
-            return;
-        }
-
-        check_missing_mocks(vec![pair]);
-        return;
-    }
-
-    let start_dir_name = start_dir_name.unwrap_or(DEFAULT_DIR_PATH.to_string());
-
-    let start_dir = Path::new(&start_dir_name);
-    let mut test_files = Vec::new();
-
-    println!("Looking for files in: {}", start_dir.display());
-    find_test_files(start_dir, &mut test_files);
-    if test_files.is_empty() {
-        println!("No files with '{TEST_FILE_EXT}' or '{SPEC_FILE_EXT}' in the name.");
-        return;
-    }
-    print_test_files(&test_files);
-
-    let pairs: Vec<TestPair> = find_under_test(&test_files);
+fn check_directory_mocks(path: &Path) {
+    println!("Looking for files in: {}", path.display());
+    let pairs = find_all_tests_in_directory(path);
     if pairs.is_empty() {
-        println!("Couldn't find any modules under test.");
+        println!("Could not find test file pairs");
         return;
     }
+
     print_under_test(&pairs);
-
     println!("Checking that all imports have a mock.");
-    check_missing_mocks(pairs);
+    check_missing_mocks(&pairs);
 }
 
-fn check_missing_mocks(pairs: Vec<TestPair>) {
+fn check_missing_mocks(pairs: &[TestPair]) {
     for pair in pairs {
-        println!("Checking {}... ", pair.under_test_path.display());
-        let imports = get_imports_from_file(&pair.under_test_path);
+        println!("Checking {}... ", pair.module_file.display());
+        let imports = get_imports_from_file(&pair.module_file);
 
-        if !imports.is_empty() {
-            print_imports(&imports);
-            check_test_for_jest_mocks(&pair, &imports);
-        } else {
+        if imports.is_empty() {
             println!("  No imports.");
+            continue;
         }
+
+        print_imports(&imports);
+        check_test_for_jest_mocks(pair, &imports);
     }
 }
 
-fn check_test_for_jest_mocks(pair: &TestPair, imports: &[String]) {
-    let test_path = pair.test_path.clone();
-    let test_contents = fs::read_to_string(test_path).unwrap();
-    let mut missing_mocks = Vec::new();
+fn check_test_for_jest_mocks(pair: &TestPair, modules: &[Module]) {
+    let test_contents = fs::read_to_string(&pair.test_file).unwrap();
+    let missing_mocks: Vec<&Module> = modules
+        .iter()
+        .filter(|module| !module.mock_with_in(&test_contents))
+        .collect();
 
-    for import in imports {
-        let mock = format!(r#"jest.mock("{import}")"#,);
-        if !test_contents.contains(&mock) {
-            missing_mocks.push(mock);
-        }
-    }
-
-    if !missing_mocks.is_empty() {
-        println!("{}", "  Missing mocks:".red());
-        for mock in missing_mocks {
-            println!("    {mock}");
-        }
-    } else {
+    if missing_mocks.is_empty() {
         println!(
             "\n{} All your imports are mocked.\n",
             "Good job!".green().bold()
         );
+    } else {
+        println!("{}", "  Missing mocks:".red());
+        for module in missing_mocks {
+            println!("    {}", module.mock());
+        }
     }
 }
 
-fn print_imports(imports: &[String]) {
+fn print_imports(modules: &[Module]) {
     println!("  Imports:");
-    for import in imports {
-        println!("    {import}");
+    for module in modules {
+        println!("    {module}");
     }
 }
 
-fn get_imports_from_file(path: &Path) -> Vec<String> {
+fn get_imports_from_file(path: &Path) -> Vec<Module> {
     let contents = fs::read_to_string(path).expect("Error reading file.");
-    let no_mock_pattern = &format!(r"(?s){}.*?{}", START_NOT_MOCKED, END_NOT_MOCKED);
-    let no_mock_regex = Regex::new(no_mock_pattern).unwrap();
-    let filtered_contents = no_mock_regex.replace_all(&contents, "");
-    let import_regex = Regex::new(r#"import\s+\{[^}]+\}\s+from\s+"([^"]+)";"#).unwrap();
-    import_regex
+    let filtered_contents = IGNORE_IMPORT_REGEX.replace_all(&contents, "");
+    IMPORT_REGEX
         .captures_iter(&filtered_contents)
-        .filter_map(|capture| capture.get(1))
-        .map(|m| m.as_str().to_string())
+        .filter_map(|capture| capture.get(2))
+        .map(|m| Module::new(m.as_str()))
         .collect()
 }
 
@@ -169,77 +106,4 @@ fn print_under_test(pairs: &[TestPair]) {
     for pair in pairs {
         println!("{pair}");
     }
-}
-
-fn print_test_files(test_files: &[DirEntry]) {
-    println!("Files with '{TEST_FILE_EXT}' or '{SPEC_FILE_EXT}' in the name:");
-    for entry in test_files {
-        println!("{entry:?}");
-    }
-}
-
-fn get_pair_for_single_file(filename: String) -> TestPair {
-    if !filename.contains(TEST_FILE_EXT) && !filename.contains(SPEC_FILE_EXT) {
-        panic!("Only filenames with '{TEST_FILE_EXT}' or '{SPEC_FILE_EXT}' are supported.");
-    }
-    let test_path = PathBuf::from(filename);
-    let under_test_path = get_under_test_path(&test_path);
-    TestPair {
-        test_path,
-        under_test_path,
-    }
-}
-
-fn get_under_test_path(test_path: &Path) -> PathBuf {
-    let test_name = test_path.file_name().unwrap().to_str().unwrap();
-    let name = test_name.replace(".spec", "").replace(".test", "");
-    test_path.with_file_name(name)
-}
-
-fn find_test_files(path: &Path, test_files: &mut Vec<DirEntry>) {
-    if let Ok(entries) = fs::read_dir(path) {
-        for entry in entries.flatten() {
-            let entry_path = entry.path();
-            let name = entry_path.file_name().unwrap().to_str().unwrap_or("");
-            if IGNORE_PATHS.contains(&name) {
-                continue;
-            }
-
-            if entry_path.is_dir() {
-                find_test_files(&entry_path, test_files);
-            } else {
-                let filename = entry.file_name();
-                if let Some(filename_str) = filename.to_str() {
-                    if filename_str.contains(TEST_FILE_EXT) || filename_str.contains(SPEC_FILE_EXT)
-                    {
-                        test_files.push(entry);
-                    }
-                }
-            }
-        }
-    } else {
-        panic!("Error reading directory contents.");
-    }
-}
-
-fn find_under_test(test_files: &[DirEntry]) -> Vec<TestPair> {
-    test_files
-        .iter()
-        .flat_map(|test_entry| {
-            let test_entry_path = test_entry.path();
-            let test_name = test_entry_path.file_name().unwrap().to_str().unwrap_or("");
-            let name = test_name
-                .replace(TEST_FILE_EXT, "")
-                .replace(SPEC_FILE_EXT, "");
-            let path = test_entry_path.with_file_name(name);
-            if path.exists() {
-                Some(TestPair {
-                    test_path: test_entry_path.clone(),
-                    under_test_path: path,
-                })
-            } else {
-                None
-            }
-        })
-        .collect()
 }
