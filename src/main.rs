@@ -17,7 +17,7 @@ static IMPORT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"import\s+(\{[^}]+\}|\*\s+as\s\w+|\w+)\s+from\s+"([^"]+)"#).unwrap()
 });
 static IGNORE_IMPORT_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"//#region not-mocked.*?//#endregion").unwrap());
+    LazyLock::new(|| Regex::new(r"(?s)//#region not-mocked.*?//#endregion").unwrap());
 
 fn main() {
     let args = Args::parse();
