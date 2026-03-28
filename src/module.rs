@@ -8,9 +8,17 @@ impl Module {
         Self(module.to_string())
     }
 
+    pub fn name(&self) -> &str {
+        &self.0
+    }
+
     pub fn mock_with_in(&self, test_file: &str) -> bool {
         let mock = format!(r#"jest.mock("{}""#, self.0);
         test_file.contains(&mock)
+    }
+
+    pub fn in_list(&self, modules: &[String]) -> bool {
+        modules.iter().any(|m| m == &self.0)
     }
 
     pub fn mock(&self) -> String {
