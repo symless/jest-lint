@@ -19,4 +19,7 @@ pub struct Args {
     #[arg(short, long)]
     #[arg(default_value = get_current_directory().to_os_string())]
     pub directory: PathBuf,
+
+    #[arg(trailing_var_arg = true)]
+    pub files: Vec<PathBuf>,
 }

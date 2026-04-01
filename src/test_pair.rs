@@ -92,3 +92,32 @@ pub fn find_all_tests_in_directory(path: impl AsRef<Path>) -> Vec<TestPair> {
         .flat_map(TestPair::try_from)
         .collect()
 }
+
+pub fn find_test_pairs_for_files(files: &[PathBuf]) -> Vec<TestPair> {
+    let mut pairs = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for path in files {
+        if let Ok(pair) = TestPair::try_from(path.as_path()) {
+            if seen.insert(pair.test_file.clone()) {
+                pairs.push(pair);
+            }
+            continue;
+        }
+
+        let name = path.file_name().unwrap_or_default().to_str().unwrap_or("");
+        for ext in [SPEC_FILE_EXT, TEST_FILE_EXT] {
+            if let Some((base, file_ext)) = name.rsplit_once('.') {
+                let spec_name = format!("{base}{ext}.{file_ext}");
+                let spec_path = path.with_file_name(spec_name);
+                if let Ok(pair) = TestPair::try_from(spec_path.as_path()) {
+                    if seen.insert(pair.test_file.clone()) {
+                        pairs.push(pair);
+                    }
+                }
+            }
+        }
+    }
+
+    pairs
+}
