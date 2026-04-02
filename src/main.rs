@@ -1,6 +1,6 @@
 use crate::{
     cli::Args,
-    config::{find_config, Config},
+    config::{find_config, Config, Severity},
     module::Module,
     test_pair::{find_all_tests_in_directory, find_test_pairs_for_files, TestPair},
 };
@@ -30,23 +30,15 @@ static BLOCK_COMMENT_REGEX: LazyLock<Regex> =
 fn main() {
     let args = Args::parse();
 
-    let has_errors = match (args.mocks, args.filename) {
-        (true, Some(path)) => {
-            let config = find_config(&path);
-            check_file_mock(&path, &config)
-        }
-        (true, None) if !args.files.is_empty() => {
-            let config = find_config(&args.directory);
-            check_files_mocks(&args.files, &config)
-        }
-        (true, None) => {
-            let config = find_config(&args.directory);
-            check_directory_mocks(&args.directory, &config)
-        }
-        _ => {
-            println!("Oops, no command specified. Try --help.");
-            false
-        }
+    let config = match &args.filename {
+        Some(path) => find_config(path),
+        None => find_config(&args.directory),
+    };
+
+    let has_errors = match &args.filename {
+        Some(path) => check_file_mock(path, &config),
+        None if !args.files.is_empty() => check_files_mocks(&args.files, &config),
+        None => check_directory_mocks(&args.directory, &config),
     };
 
     if has_errors {
@@ -152,7 +144,9 @@ fn check_test_for_jest_mocks(
         }
     }
 
-    if !has_missing && !has_warnings {
+    let expect_args = check_expect_args(&stripped, &pair.test_file, config);
+
+    if !has_missing && !has_warnings && !expect_args.has_violations {
         if has_mocked {
             println!(
                 "\n{} All your imports are mocked.\n",
@@ -163,7 +157,7 @@ fn check_test_for_jest_mocks(
         }
     }
 
-    has_missing
+    has_missing || expect_args.is_error
 }
 
 fn get_warnings(
@@ -234,4 +228,39 @@ fn print_under_test(pairs: &[TestPair]) {
     for pair in pairs {
         println!("{pair}");
     }
+}
+
+struct ExpectArgsResult {
+    has_violations: bool,
+    is_error: bool,
+}
+
+fn check_expect_args(stripped: &str, test_file: &Path, config: &Config) -> ExpectArgsResult {
+    let Some(regex) = config.expect_args.build_regex() else {
+        return ExpectArgsResult { has_violations: false, is_error: false };
+    };
+
+    let violations: Vec<(usize, &str)> = stripped
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| regex.is_match(line))
+        .collect();
+
+    if violations.is_empty() {
+        return ExpectArgsResult { has_violations: false, is_error: false };
+    }
+
+    let is_error = config.expect_args.severity == Severity::Error;
+    let label = if is_error {
+        "Flagged expect() args:".red()
+    } else {
+        "Flagged expect() args:".yellow()
+    };
+
+    println!("  {label} {}", test_file.display());
+    for (line_num, line) in &violations {
+        println!("    line {}: {}", line_num + 1, line.trim());
+    }
+
+    ExpectArgsResult { has_violations: true, is_error }
 }

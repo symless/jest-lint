@@ -2,8 +2,12 @@
 
 Lint your Jest unit tests to find problems. Built with Rust.
 
-Right now this is a simple tool to check that you have mocked your imports. But if you have an
-idea for adding a new feature, feel free to suggest.
+## Features
+
+- **Mock checking** -- checks that all imports in the module under test have a corresponding `jest.mock()` in the test file
+- **Flagged expect args** -- flags suspect words (e.g. "stub") inside `expect()` calls, since stub values shouldn't be asserted on
+
+All features are enabled by default. Use `.jest_lint.json` to customize behavior.
 
 ## Getting started
 
@@ -18,23 +22,23 @@ cargo install jest_lint
 jest_lint --help
 ```
 
-To check for mocks in all files in the current directory:
+Check all files in the current directory:
 
 ```
-jest_lint -m
+jest_lint
 ```
 
-To check for mocks in a specific directory:
+Check a specific directory:
 
 ```
-jest_lint -m -d path/to/files
+jest_lint -d path/to/files
 ```
 
-To check for mocks in specific files:
+Check specific files:
 
 ```
-jest_lint -m -f path/to/foobar.test.js
-jest_lint -m path/to/foo.test.js path/to/bar.test.js
+jest_lint -f path/to/foobar.test.js
+jest_lint path/to/foo.test.js path/to/bar.test.js
 ```
 
 ### Latest development build
@@ -50,9 +54,8 @@ PRs welcome!
 
 ## Configuration
 
-Create a `.jest_lint.json` file in your project root to configure which modules should be ignored
-when checking for mocks. The config file is automatically discovered by searching up from the
-checked file's directory.
+Create a `.jest_lint.json` file in your project root. The config file is automatically discovered
+by searching up from the checked file's directory.
 
 ```json
 {
@@ -62,9 +65,15 @@ checked file's directory.
     "*.module.scss",
     "next/**",
     "**/types/*"
-  ]
+  ],
+  "expectArgs": {
+    "flagged": ["stub"],
+    "severity": "warning"
+  }
 }
 ```
+
+### Ignored modules
 
 Patterns support exact matches and glob syntax (`*` for single level, `**` for nested paths).
 
@@ -73,6 +82,17 @@ You can also ignore individual imports inline in your test file with a comment:
 ```ts
 // jest_lint:ignore ./utils
 ```
+
+### Flagged expect args
+
+Flags lines where `expect()` contains a word from the `flagged` list. This catches cases where
+stub values leak into assertions, e.g. `expect(stubName).toBe("hello")`.
+
+| Field | Default | Description |
+|---|---|---|
+| `enabled` | `true` | Set to `false` to disable this check |
+| `flagged` | `[]` | Words to flag inside `expect()` calls |
+| `severity` | `"error"` | `"error"` (exit 1) or `"warning"` (exit 0) |
 
 See the [examples](examples/) directory for a working demo.
 
@@ -84,7 +104,7 @@ If you're using VS Code, you can add a task to `.vscode/tasks.json` to run `jest
 {
   "label": "jest_lint",
   "type": "shell",
-  "command": "jest_lint -mf ${file}"
+  "command": "jest_lint -f ${file}"
 }
 ```
 
