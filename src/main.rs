@@ -166,13 +166,22 @@ fn check_test_for_jest_mocks(
     has_missing
 }
 
-fn get_warnings(test_mocks: &[String], all_imports: &[Module], config: &Config) -> Vec<String> {
+fn get_warnings(
+    test_mocks: &[String],
+    all_imports: &[Module],
+    test_ignores: &[String],
+    config: &Config,
+) -> Vec<String> {
     let mut warnings = Vec::new();
 
     for mock in test_mocks {
         if config.is_ignored(mock) {
             warnings.push(format!(
                 "jest.mock(\"{mock}\") is unnecessary (module is globally ignored)"
+            ));
+        } else if test_ignores.contains(mock) {
+            warnings.push(format!(
+                "jest.mock(\"{mock}\") is unnecessary (module is ignored by jest_lint:ignore)"
             ));
         } else if !all_imports.iter().any(|import| import.name() == mock) {
             warnings.push(format!(
