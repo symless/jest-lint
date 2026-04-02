@@ -92,24 +92,13 @@ fn check_missing_mocks(pairs: &[TestPair], config: &Config) -> bool {
     for pair in pairs {
         println!("Checking {}... ", pair.module_file.display());
         let all_imports = get_all_imports_from_file(&pair.module_file);
-        let imports: Vec<&Module> = all_imports
-            .iter()
-            .filter(|module| !config.is_ignored(module.name()))
-            .collect();
 
-        if imports.is_empty() {
-            let ignored_count = all_imports.len();
-            if ignored_count > 0 {
-                println!("  No imports to mock ({ignored_count} ignored).");
-            } else {
-                println!("  No imports.");
-            }
-            check_test_for_warnings(pair, &all_imports, config);
+        if all_imports.is_empty() {
+            println!("  No imports.");
             continue;
         }
 
-        print_imports(&imports);
-        if check_test_for_jest_mocks(pair, &imports, &all_imports, config) {
+        if check_test_for_jest_mocks(pair, &all_imports, config) {
             has_errors = true;
         }
     }
@@ -118,7 +107,6 @@ fn check_missing_mocks(pairs: &[TestPair], config: &Config) -> bool {
 
 fn check_test_for_jest_mocks(
     pair: &TestPair,
-    modules: &[&Module],
     all_imports: &[Module],
     config: &Config,
 ) -> bool {
@@ -126,15 +114,26 @@ fn check_test_for_jest_mocks(
     let test_ignores = get_test_ignores(&test_contents);
     let test_mocks = get_test_mocks(&test_contents);
 
-    let missing_mocks: Vec<&&Module> = modules
-        .iter()
-        .filter(|module| !module.mock_with_in(&test_contents) && !module.in_list(&test_ignores))
-        .collect();
+    let mut missing_mocks = Vec::new();
+
+    println!("  Imports:");
+    for module in all_imports {
+        if config.is_ignored(module.name()) {
+            println!("    {} {}", module, "(ignored)".dimmed());
+        } else if module.mock_with_in(&test_contents) {
+            println!("    {} {}", module, "(mocked)".green());
+        } else if module.in_list(&test_ignores) {
+            println!("    {} {}", module, "(ignored)".dimmed());
+        } else {
+            println!("    {} {}", module, "(not mocked)".red());
+            missing_mocks.push(module);
+        }
+    }
 
     let has_missing = !missing_mocks.is_empty();
     if has_missing {
         println!("{}", "  Missing mocks:".red());
-        for module in missing_mocks {
+        for module in &missing_mocks {
             println!("    {}", module.mock());
         }
     }
@@ -156,18 +155,6 @@ fn check_test_for_jest_mocks(
     }
 
     has_missing
-}
-
-fn check_test_for_warnings(pair: &TestPair, all_imports: &[Module], config: &Config) {
-    let test_contents = fs::read_to_string(&pair.test_file).unwrap();
-    let test_mocks = get_test_mocks(&test_contents);
-    let warnings = get_warnings(&test_mocks, all_imports, config);
-    if !warnings.is_empty() {
-        println!("{}", "  Warnings:".yellow());
-        for warning in &warnings {
-            println!("    {warning}");
-        }
-    }
 }
 
 fn get_warnings(test_mocks: &[String], all_imports: &[Module], config: &Config) -> Vec<String> {
@@ -202,13 +189,6 @@ fn get_test_ignores(test_contents: &str) -> Vec<String> {
         .filter_map(|capture| capture.get(1))
         .flat_map(|m| m.as_str().split(',').map(|s| s.trim().to_string()))
         .collect()
-}
-
-fn print_imports(modules: &[&Module]) {
-    println!("  Imports:");
-    for module in modules {
-        println!("    {module}");
-    }
 }
 
 fn get_all_imports_from_file(path: &Path) -> Vec<Module> {
