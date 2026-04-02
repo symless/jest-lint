@@ -11,4 +11,11 @@ describe("helloWorld", () => {
     dependencyMock.mockReturnValue("Mock");
     expect(helloWorld()).toBe("Hello World Mock");
   });
+
+  it("should not use stub values in expect", () => {
+    const stubName = "stub name";
+
+    // Example: "stub" will trigger a warning (configured in .jest_lint.json)
+    expect(stubName).toBe("stub name");
+  });
 });

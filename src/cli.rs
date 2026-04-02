@@ -7,10 +7,6 @@ fn get_current_directory() -> OsString {
 
 #[derive(Debug, Parser)]
 pub struct Args {
-    /// Checks that all imports have a corresponding mock.
-    #[arg(short, long)]
-    pub mocks: bool,
-
     /// Only check a specific filename.
     #[arg(short, long)]
     pub filename: Option<PathBuf>,

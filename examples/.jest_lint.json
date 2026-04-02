@@ -1,5 +1,7 @@
 {
-  "ignoredModules": [
-    "**/types/*"
-  ]
+  "ignoredModules": ["**/types/*"],
+  "expectArgs": {
+    "flagged": ["stub"],
+    "severity": "warning"
+  }
 }
