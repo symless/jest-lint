@@ -24,6 +24,8 @@ static IGNORE_COMMENT_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"//\s*jest_lint:ignore\s+(.+)").unwrap());
 static JEST_MOCK_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"jest\.mock\("([^"]+)""#).unwrap());
+static BLOCK_COMMENT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?s)/\*.*?\*/").unwrap());
 
 fn main() {
     let args = Args::parse();
@@ -112,6 +114,7 @@ fn check_test_for_jest_mocks(
 ) -> bool {
     let test_contents = fs::read_to_string(&pair.test_file).unwrap();
     let test_ignores = get_test_ignores(&test_contents);
+    let stripped = strip_comments(&test_contents);
     let test_mocks = get_test_mocks(&test_contents);
 
     let mut missing_mocks = Vec::new();
@@ -120,7 +123,7 @@ fn check_test_for_jest_mocks(
     for module in all_imports {
         if config.is_ignored(module.name()) {
             println!("    {} {}", module, "(ignored)".dimmed());
-        } else if module.mock_with_in(&test_contents) {
+        } else if module.mock_with_in(&stripped) {
             println!("    {} {}", module, "(mocked)".green());
         } else if module.in_list(&test_ignores) {
             println!("    {} {}", module, "(ignored)".dimmed());
@@ -175,9 +178,19 @@ fn get_warnings(test_mocks: &[String], all_imports: &[Module], config: &Config) 
     warnings
 }
 
+fn strip_comments(contents: &str) -> String {
+    let without_block = BLOCK_COMMENT_REGEX.replace_all(contents, "");
+    without_block
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("//"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn get_test_mocks(test_contents: &str) -> Vec<String> {
+    let stripped = strip_comments(test_contents);
     JEST_MOCK_REGEX
-        .captures_iter(test_contents)
+        .captures_iter(&stripped)
         .filter_map(|capture| capture.get(1))
         .map(|m| m.as_str().to_string())
         .collect()
