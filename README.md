@@ -68,6 +68,14 @@ checked file's directory.
 
 Patterns support exact matches and glob syntax (`*` for single level, `**` for nested paths).
 
+You can also ignore individual imports inline in your test file with a comment:
+
+```ts
+// jest_lint:ignore ./utils
+```
+
+See the [examples](examples/) directory for a working demo.
+
 ## Tips & Tricks
 
 If you're using VS Code, you can add a task to `.vscode/tasks.json` to run `jest_lint` on the current file:

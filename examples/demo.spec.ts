@@ -1,6 +1,7 @@
 import { helloWorld } from "./demo";
 import { dependency } from "./dependency";
 
+// jest_lint:ignore ./utils
 jest.mock("./dependency");
 
 describe("helloWorld", () => {
