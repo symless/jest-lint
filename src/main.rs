@@ -98,7 +98,12 @@ fn check_missing_mocks(pairs: &[TestPair], config: &Config) -> bool {
             .collect();
 
         if imports.is_empty() {
-            println!("  No imports.");
+            let ignored_count = all_imports.len();
+            if ignored_count > 0 {
+                println!("  No imports to mock ({ignored_count} ignored).");
+            } else {
+                println!("  No imports.");
+            }
             check_test_for_warnings(pair, &all_imports, config);
             continue;
         }
