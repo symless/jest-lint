@@ -118,6 +118,7 @@ fn check_test_for_jest_mocks(
     let test_mocks = get_test_mocks(&test_contents);
 
     let mut missing_mocks = Vec::new();
+    let mut has_mocked = false;
 
     println!("  Imports:");
     for module in all_imports {
@@ -125,6 +126,7 @@ fn check_test_for_jest_mocks(
             println!("    {} {}", module, "(ignored)".dimmed());
         } else if module.mock_with_in(&stripped) {
             println!("    {} {}", module, "(mocked)".green());
+            has_mocked = true;
         } else if module.in_list(&test_ignores) {
             println!("    {} {}", module, "(ignored)".dimmed());
         } else {
@@ -141,7 +143,7 @@ fn check_test_for_jest_mocks(
         }
     }
 
-    let warnings = get_warnings(&test_mocks, all_imports, config);
+    let warnings = get_warnings(&test_mocks, all_imports, &test_ignores, config);
     let has_warnings = !warnings.is_empty();
     if has_warnings {
         println!("{}", "  Warnings:".yellow());
@@ -151,10 +153,14 @@ fn check_test_for_jest_mocks(
     }
 
     if !has_missing && !has_warnings {
-        println!(
-            "\n{} All your imports are mocked.\n",
-            "Good job!".green().bold()
-        );
+        if has_mocked {
+            println!(
+                "\n{} All your imports are mocked.\n",
+                "Good job!".green().bold()
+            );
+        } else {
+            println!("\n{}\n", "All imports are ignored, nothing to mock.".dimmed());
+        }
     }
 
     has_missing
