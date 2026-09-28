@@ -110,10 +110,10 @@ pub fn find_test_pairs_for_files(files: &[PathBuf]) -> Vec<TestPair> {
             if let Some((base, file_ext)) = name.rsplit_once('.') {
                 let spec_name = format!("{base}{ext}.{file_ext}");
                 let spec_path = path.with_file_name(spec_name);
-                if let Ok(pair) = TestPair::try_from(spec_path.as_path()) {
-                    if seen.insert(pair.test_file.clone()) {
-                        pairs.push(pair);
-                    }
+                if let Ok(pair) = TestPair::try_from(spec_path.as_path())
+                    && seen.insert(pair.test_file.clone())
+                {
+                    pairs.push(pair);
                 }
             }
         }
