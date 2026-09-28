@@ -1,14 +1,19 @@
 use crate::{
     cli::Args,
-    config::{find_config, Config, Severity},
+    config::{Config, Severity, find_config},
     module::Module,
-    test_pair::{find_all_tests_in_directory, find_test_pairs_for_files, TestPair},
+    test_pair::{TestPair, find_all_tests_in_directory, find_test_pairs_for_files},
 };
 use clap::Parser;
 use colored::*;
 use core::slice;
 use regex::Regex;
-use std::{fs, path::{Path, PathBuf}, process, sync::LazyLock};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process,
+    sync::LazyLock,
+};
 
 mod cli;
 mod config;
@@ -99,11 +104,7 @@ fn check_missing_mocks(pairs: &[TestPair], config: &Config) -> bool {
     has_errors
 }
 
-fn check_test_for_jest_mocks(
-    pair: &TestPair,
-    all_imports: &[Module],
-    config: &Config,
-) -> bool {
+fn check_test_for_jest_mocks(pair: &TestPair, all_imports: &[Module], config: &Config) -> bool {
     let test_contents = fs::read_to_string(&pair.test_file).unwrap();
     let test_ignores = get_test_ignores(&test_contents);
     let stripped = strip_comments(&test_contents);
@@ -153,7 +154,10 @@ fn check_test_for_jest_mocks(
                 "Good job!".green().bold()
             );
         } else {
-            println!("\n{}\n", "All imports are ignored, nothing to mock.".dimmed());
+            println!(
+                "\n{}\n",
+                "All imports are ignored, nothing to mock.".dimmed()
+            );
         }
     }
 
@@ -237,7 +241,10 @@ struct ExpectArgsResult {
 
 fn check_expect_args(stripped: &str, test_file: &Path, config: &Config) -> ExpectArgsResult {
     let Some(regex) = config.expect_args.build_regex() else {
-        return ExpectArgsResult { has_violations: false, is_error: false };
+        return ExpectArgsResult {
+            has_violations: false,
+            is_error: false,
+        };
     };
 
     let violations: Vec<(usize, &str)> = stripped
@@ -247,7 +254,10 @@ fn check_expect_args(stripped: &str, test_file: &Path, config: &Config) -> Expec
         .collect();
 
     if violations.is_empty() {
-        return ExpectArgsResult { has_violations: false, is_error: false };
+        return ExpectArgsResult {
+            has_violations: false,
+            is_error: false,
+        };
     }
 
     let is_error = config.expect_args.severity == Severity::Error;
@@ -262,5 +272,8 @@ fn check_expect_args(stripped: &str, test_file: &Path, config: &Config) -> Expec
         println!("    line {}: {}", line_num + 1, line.trim());
     }
 
-    ExpectArgsResult { has_violations: true, is_error }
+    ExpectArgsResult {
+        has_violations: true,
+        is_error,
+    }
 }
