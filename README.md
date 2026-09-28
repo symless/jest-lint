@@ -76,6 +76,10 @@ by searching up from the checked file's directory.
 ### Ignored modules
 
 Patterns support exact matches and glob syntax (`*` for single level, `**` for nested paths).
+A plain name, or a brace list like `{react,react-dom}`, matches only that import (a leading `./` is
+ignored), so `react` doesn't also ignore `@sentry/react`. A pattern with a wildcard (`*`, `?` or
+`[`) also matches an import's last path segment, so `*.module.scss` catches
+`../../app/page.module.scss`.
 
 You can also ignore individual imports inline in your test file with a comment:
 

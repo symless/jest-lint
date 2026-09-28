@@ -77,11 +77,18 @@ impl Config {
             pattern == module
                 || glob_match(pattern, module)
                 || glob_match(pattern, module.trim_start_matches("./"))
-                || module
-                    .rsplit_once('/')
-                    .is_some_and(|(_, name)| glob_match(pattern, name))
+                || (has_wildcard(pattern)
+                    && module
+                        .rsplit_once('/')
+                        .is_some_and(|(_, name)| glob_match(pattern, name)))
         })
     }
+}
+
+// Only a wildcard matches an import's last path segment: a plain name like "react", or a brace
+// list containing it, must not also ignore "@sentry/react".
+fn has_wildcard(pattern: &str) -> bool {
+    pattern.contains(['*', '?', '['])
 }
 
 pub fn find_config(start: &Path) -> Config {
@@ -126,10 +133,34 @@ mod tests {
     }
 
     #[test]
+    fn test_plain_name_does_not_match_last_segment() {
+        let config = config_with(&["react"]);
+        assert!(config.is_ignored("react"));
+        assert!(!config.is_ignored("@sentry/react"));
+        assert!(!config.is_ignored("../lib/react"));
+    }
+
+    #[test]
+    fn test_brace_list_does_not_match_last_segment() {
+        let config = config_with(&["{react,react-dom}"]);
+        assert!(config.is_ignored("react"));
+        assert!(config.is_ignored("react-dom"));
+        assert!(!config.is_ignored("@sentry/react"));
+    }
+
+    #[test]
+    fn test_glob_matches_last_segment() {
+        let config = config_with(&["*.svg?react", "*Types"]);
+        assert!(config.is_ignored("assets/images/close.svg?react"));
+        assert!(config.is_ignored("../CoreTypes"));
+        assert!(!config.is_ignored("@sentry/react"));
+    }
+
+    #[test]
     fn test_single_star_matches_one_level() {
         let config = config_with(&["@mui/*"]);
         assert!(config.is_ignored("@mui/material"));
-        // Single * should NOT match nested paths
+        assert!(!config.is_ignored("@mui/material/CircularProgress"));
     }
 
     #[test]
