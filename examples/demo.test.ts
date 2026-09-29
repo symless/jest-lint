@@ -4,6 +4,7 @@ import { helloWorld } from "./demo";
 import { dependency } from "./dependency";
 
 jest.mock("./dependency");
+jest.mock("./services/logger");
 
 describe("helloWorld", () => {
   it("should return 'Hello World!'", () => {
